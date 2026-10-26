@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id          String     @id @default(uuid())
+  userName    String     @unique
+  email       String     @unique
+  phoneNumber String     @default("")
+  password    String?
+  googleId    String?    @unique
+  firstName   String     @default("")
+  lastName    String     @default("")
+  dob         String     @default("")
+  image       String     @default("default-avatar.png")
+  role        String     @default("User")
+  cartItems   CartItem[]
+  orders      Order[]
+  createdAt   DateTime   @default(now())
+}
+
+model Category {
+  id            Int           @id @default(autoincrement())
+  categoryName  String        @unique
+  categoryImage String
+  subCategories SubCategory[]
+}
+
+model SubCategory {
+  id              Int       @id @default(autoincrement())
+  subCategoryName String
+  categoryId      Int
+  category        Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products        Product[]
+}
+
+model Brand {
+  id        Int       @id @default(autoincrement())
+  brandName String    @unique
+  products  Product[]
+}
+
+model Color {
+  id        Int       @id @default(autoincrement())
+  colorName String    @unique
+  products  Product[]
+}
+
+model Product {
+  id            Int            @id @default(autoincrement())
+  productName   String
+  description   String
+  quantity      Int            @default(1)
+  weight        String?
+  size          String?
+  code          String
+  price         Float
+  hasDiscount   Boolean        @default(false)
+  discountPrice Float          @default(0)
+  brandId       Int
+  brand         Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  colorId       Int
+  color         Color          @relation(fields: [colorId], references: [id], onDelete: Cascade)
+  subCategoryId Int
+  subCategory   SubCategory    @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  images        ProductImage[]
+  cartItems     CartItem[]
+  createdAt     DateTime       @default(now())
+}
+
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  images    String
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model CartItem {
+  id        Int     @id @default(autoincrement())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int     @default(1)
+
+  @@unique([userId, productId])
+}
+
+model Order {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address     String
+  phone       String
+  totalAmount Float
+  status      String   @default("Pending")
+  itemsJson   String
+  createdAt   DateTime @default(now())
+}
