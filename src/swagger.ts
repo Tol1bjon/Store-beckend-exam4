@@ -5,7 +5,7 @@ export const swaggerDocument = {
     version: "2.0.0",
     description: "Улучшенная версия Store API: с поддержкой Google OAuth, JSON + Query совместимостью, необязательными картинками при PUT и модулем Заказов (Orders)."
   },
-  servers: [{ url: "http://localhost:5000", description: "Local Dev Server" }],
+  servers: [{ url: "https://store-beckend-exam4.onrender.com", description: "Cloud Server" }],
   components: {
     securitySchemes: {
       Bearer: {
