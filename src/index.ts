@@ -24,6 +24,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/images", express.static(imagesDir));
 
+// Если картинки нет в локальной папке uploads – берём её со старого сервера!
+app.get("/images/:fileName", (req, res) => {
+  res.redirect(`https://store-api.softclub.tj/images/${req.params.fileName}`);
+});
+
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, imagesDir),
   filename: (_req, file, cb) => {
@@ -542,53 +547,420 @@ app.post("/Order/checkout", authMiddleware, async (req: AuthRequest, res) => {
 });
 
 async function seedDatabase() {
-  const count = await prisma.category.count();
-  if (count > 0) return;
+  const alreadySeeded = await prisma.product.findUnique({ where: { id: 409 } });
+if (alreadySeeded) return;
+  try {
+    console.log("🌱 Переносим данные из оригинального Store API...");
 
-  console.log("🌱 Заполняем базу стартовыми данными...");
-  const adminPassword = await bcrypt.hash("admin123", 10);
-  await prisma.user.create({
-    data: {
-      userName: "admin",
-      email: "admin@softclub.tj",
-      password: adminPassword,
-      role: "Admin",
-      firstName: "Admin",
-      lastName: "SoftClub",
-    },
-  });
+    // 1. Очищаем старые тестовые данные, чтобы не было конфликтов ID
+    await prisma.cartItem.deleteMany();
+    await prisma.productImage.deleteMany();
+    await prisma.product.deleteMany();
+    await prisma.subCategory.deleteMany();
+    await prisma.category.deleteMany();
+    await prisma.brand.deleteMany();
+    await prisma.color.deleteMany();
 
-  const apple = await prisma.brand.create({ data: { brandName: "Apple" } });
-  const samsung = await prisma.brand.create({ data: { brandName: "Samsung" } });
-  const black = await prisma.color.create({ data: { colorName: "Black" } });
-  const titanium = await prisma.color.create({ data: { colorName: "Natural Titanium" } });
+    // 2. Создаём админа (если его ещё нет)
+    const adminExists = await prisma.user.findFirst({ where: { userName: "admin" } });
+    if (!adminExists) {
+      const bcrypt = await import("bcryptjs");
+      const hashedPassword = await bcrypt.default.hash("admin123", 10);
+      await prisma.user.create({
+        data: {
+          userName: "admin",
+          email: "admin@store.tj",
+          phoneNumber: "+992900000000",
+          password: hashedPassword,
+          role: "Admin",
+        },
+      });
+    }
 
-  const cat = await prisma.category.create({
-    data: {
-      categoryName: "Electronics",
-      categoryImage: "electronics.png",
-      subCategories: {
-        create: [{ subCategoryName: "Smartphones" }, { subCategoryName: "Laptops" }],
+    // 3. Загружаем все Бренды (сохраняем оригинальные ID)
+    const brands = [
+      { id: 36, brandName: "Samsung" },
+      { id: 42, brandName: "Huawei" },
+      { id: 43, brandName: "ASUS" },
+      { id: 50, brandName: "Sennheiser" },
+      { id: 71, brandName: "madin01" },
+      { id: 73, brandName: "Comfort Trends" },
+      { id: 74, brandName: "Calvin Klein" },
+      { id: 75, brandName: "Fashion Diva" },
+      { id: 76, brandName: "Pampi" },
+      { id: 77, brandName: "Fashion Express" },
+      { id: 78, brandName: "Fashionista" },
+      { id: 79, brandName: "Heshe" },
+      { id: 80, brandName: "Prada" },
+      { id: 81, brandName: "Urban Chic" },
+      { id: 82, brandName: "Elegance Collection" },
+      { id: 83, brandName: "IWC" },
+      { id: 84, brandName: "Rolex" },
+      { id: 85, brandName: "Fashion Gold" },
+      { id: 86, brandName: "Fashion Co." },
+      { id: 87, brandName: "Fashion Trends" },
+      { id: 88, brandName: "Gigabyte" },
+      { id: 89, brandName: "Classic Wear" },
+      { id: 91, brandName: "Nike" },
+      { id: 94, brandName: "Fashion Timepieces" },
+      { id: 95, brandName: "Longines" },
+      { id: 96, brandName: "Fashion Shades" },
+      { id: 98, brandName: "Apple" },
+      { id: 99, brandName: "Oppo" },
+      { id: 100, brandName: "Lenovo" },
+      { id: 101, brandName: "Dell" },
+      { id: 102, brandName: "Amazon" },
+      { id: 103, brandName: "Annibale Colombo" },
+      { id: 108, brandName: "FastCart" },
+      { id: 109, brandName: "Essence" },
+      { id: 110, brandName: "Attitude" },
+      { id: 111, brandName: "Glamour Beauty" },
+      { id: 112, brandName: "Chanel" },
+      { id: 113, brandName: "Olay" },
+    ];
+    for (const b of brands) {
+      await prisma.brand.create({ data: b });
+    }
+
+    // 4. Загружаем все Цвета
+    const colors = [
+      { id: 1, colorName: "q" },
+      { id: 2, colorName: "Black" },
+      { id: 3, colorName: "Silver" },
+      { id: 4, colorName: "Blue" },
+      { id: 5, colorName: "Magenta" },
+      { id: 6, colorName: "jh" },
+      { id: 7, colorName: "#901313" },
+      { id: 10, colorName: "whiteee" },
+      { id: 12, colorName: "red" },
+      { id: 13, colorName: "blue" },
+      { id: 14, colorName: "#00ff33" },
+      { id: 15, colorName: "#4c88e0" },
+      { id: 16, colorName: "#2563eb" },
+      { id: 18, colorName: "Gray" },
+      { id: 19, colorName: "Gold" },
+      { id: 22, colorName: "#1231" },
+      { id: 23, colorName: "chimchi" },
+      { id: 24, colorName: "green" },
+      { id: 25, colorName: "#2563EB" },
+      { id: 26, colorName: "#414856" },
+      { id: 28, colorName: "White" },
+      { id: 29, colorName: "Brown" },
+      { id: 30, colorName: "Pink" },
+    ];
+    for (const c of colors) {
+      await prisma.color.create({ data: c });
+    }
+
+    // 5. Загружаем Категории вместе с их Подкатегориями
+    const categories = [
+      {
+        id: 21,
+        categoryName: "SmartWatch",
+        categoryImage: "2c0ab3cf-47b8-401f-b692-59e6db0132f5.png",
+        subCategories: [
+          { id: 181, subCategoryName: "Smartwatches" },
+          { id: 178, subCategoryName: "Motorola_I" },
+        ],
       },
-    },
-    include: { subCategories: true },
-  });
+      {
+        id: 22,
+        categoryName: "Computers",
+        categoryImage: "c950cdfe-3365-4570-bfeb-fa6143e1d88c.png",
+        subCategories: [
+          { id: 183, subCategoryName: "Laptops" },
+          { id: 184, subCategoryName: "Monitor" },
+          { id: 175, subCategoryName: "MacBook" },
+          { id: 202, subCategoryName: "xz nb,./" },
+          { id: 185, subCategoryName: "Desktops" },
+        ],
+      },
+      {
+        id: 23,
+        categoryName: "Gaming",
+        categoryImage: "4c578867-e35d-4ca3-bf70-55a7e969b8c7.png",
+        subCategories: [
+          { id: 187, subCategoryName: "Controllers" },
+          { id: 161, subCategoryName: "Audi" },
+          { id: 163, subCategoryName: "Pc_" },
+        ],
+      },
+      {
+        id: 30,
+        categoryName: "Cars",
+        categoryImage: "021f75e4-e546-40db-ba33-691b24b85b30.png",
+        subCategories: [
+          { id: 154, subCategoryName: "Toyota" },
+          { id: 168, subCategoryName: "tayota" },
+          { id: 165, subCategoryName: "Nascar types" },
+          { id: 160, subCategoryName: "Koenigsegg" },
+          { id: 159, subCategoryName: "Mitsubishi" },
+        ],
+      },
+      {
+        id: 41,
+        categoryName: "Medicine",
+        categoryImage: "c584737c-bd71-46cc-bf3a-672ecc8d0025.png",
+        subCategories: [],
+      },
+      {
+        id: 43,
+        categoryName: "Baby’s & Toys",
+        categoryImage: "d7e1581a-7251-4551-b994-3fc96e12c6c5.png",
+        subCategories: [{ id: 232, subCategoryName: "Challenge" }],
+      },
+      {
+        id: 54,
+        categoryName: "Phones",
+        categoryImage: "37c3e6e9-4395-4e1f-b092-7ca77b0a19cd.jpeg",
+        subCategories: [
+          { id: 193, subCategoryName: "Huawei" },
+          { id: 191, subCategoryName: "Флагманы" },
+        ],
+      },
+      {
+        id: 68,
+        categoryName: "Woman's Fashion",
+        categoryImage: "a0f12e77-96b8-41da-9b94-35b6386fd33c.svg",
+        subCategories: [
+          { id: 203, subCategoryName: "Dresses" },
+          { id: 204, subCategoryName: "Shoes" },
+          { id: 207, subCategoryName: "Tops" },
+          { id: 206, subCategoryName: "Jewellery" },
+          { id: 205, subCategoryName: "Bags" },
+          { id: 208, subCategoryName: "Watches" },
+        ],
+      },
+      {
+        id: 70,
+        categoryName: "Electronic",
+        categoryImage: "7f2bdcaa-12c8-4b09-922c-abc0361f71fe.jpg",
+        subCategories: [
+          { id: 214, subCategoryName: "Laptops" },
+          { id: 213, subCategoryName: "Smartphones" },
+          { id: 216, subCategoryName: "Accessories" },
+          { id: 215, subCategoryName: "Tablets" },
+        ],
+      },
+      {
+        id: 88,
+        categoryName: "Men's Fashion",
+        categoryImage: "9412fe6f-42ca-4e38-8efb-d8ea54e10832.svg",
+        subCategories: [
+          { id: 223, subCategoryName: "Sunglasses" },
+          { id: 221, subCategoryName: "Shoes" },
+          { id: 220, subCategoryName: "Shirts" },
+          { id: 222, subCategoryName: "Watches" },
+        ],
+      },
+      {
+        id: 89,
+        categoryName: "Home & Lifestyle",
+        categoryImage: "ac9757e1-a23d-402f-8609-507ad33ee520.svg",
+        subCategories: [
+          { id: 225, subCategoryName: "Decoration" },
+          { id: 224, subCategoryName: "Furniture" },
+          { id: 226, subCategoryName: "Kitchen" },
+        ],
+      },
+      {
+        id: 90,
+        categoryName: "Sports & Outdoor",
+        categoryImage: "6fd74bf6-7361-4bca-b629-8808e3b65173.svg",
+        subCategories: [{ id: 227, subCategoryName: "Sports accessories" }],
+      },
+      {
+        id: 91,
+        categoryName: "Groceries & Pets",
+        categoryImage: "c92da0b0-a209-4440-93f1-f4b856b8c438.svg",
+        subCategories: [{ id: 228, subCategoryName: "Groceries" }],
+      },
+      {
+        id: 92,
+        categoryName: "Health & Beauty",
+        categoryImage: "7b7c8aa7-ebbf-4312-a28c-e1a31431ca61.svg",
+        subCategories: [
+          { id: 229, subCategoryName: "Beauty" },
+          { id: 231, subCategoryName: "Skin care" },
+          { id: 230, subCategoryName: "Fragrances" },
+        ],
+      },
+      {
+        id: 93,
+        categoryName: "Profile",
+        categoryImage: "ef7c805e-e486-47c3-b147-80ca1f48d683.jpg",
+        subCategories: [],
+      },
+      {
+        id: 96,
+        categoryName: "еуые",
+        categoryImage: "02158af9-becb-4bb6-a020-201ce72641de.png",
+        subCategories: [],
+      },
+    ];
 
-  await prisma.product.create({
-    data: {
-      productName: "iPhone 16 Pro 256GB",
-      description: "Flagship Apple smartphone with A18 Pro chip",
-      price: 1199,
-      hasDiscount: true,
-      discountPrice: 1099,
-      quantity: 15,
-      code: "IP16PRO",
-      brandId: apple.id,
-      colorId: titanium.id,
-      subCategoryId: cat.subCategories[0].id,
-    },
-  });
-  console.log("✅ Готово! Логин админа: admin / Пароль: admin123");
+    for (const cat of categories) {
+      await prisma.category.create({
+        data: {
+          id: cat.id,
+          categoryName: cat.categoryName,
+          categoryImage: cat.categoryImage,
+          subCategories: {
+            create: cat.subCategories,
+          },
+        },
+      });
+    }
+
+    // 6. Загружаем Товары (Products) со связями к брендам, цветам и подкатегориям
+    const products = [
+      {
+        id: 409,
+        productName: "Longines Master Collection",
+        image: "0a250880-a9ed-42f6-8c74-567aca829e11.webp",
+        price: 1499.99,
+        hasDiscount: true,
+        discountPrice: 1241.39,
+        quantity: 100,
+        brandId: 95, // Longines
+        colorId: 4, // Blue
+        subCategoryId: 222, // Watches (Men's Fashion)
+      },
+      {
+        id: 414,
+        productName: "Baseball Ball",
+        image: "65bbbf7f-e2d2-4b6e-a81a-9bf960afae67.webp",
+        price: 8.99,
+        hasDiscount: false,
+        discountPrice: 0,
+        quantity: 100,
+        brandId: 91, // Nike
+        colorId: 28, // White
+        subCategoryId: 227, // Sports accessories (Sports & Outdoor)
+      },
+      {
+        id: 401,
+        productName: "Essence Mascara Lash Princess",
+        image: "9ff1a928-1a30-48c1-bbe4-56f30a8f325e.webp",
+        price: 9.99,
+        hasDiscount: true,
+        discountPrice: 8.94,
+        quantity: 99,
+        brandId: 109, // Essence
+        colorId: 18, // Gray
+        subCategoryId: 229, // Beauty (Health & Beauty)
+      },
+      {
+        id: 388,
+        productName: "Heshe Women's Leather Bag",
+        image: "32d0b747-d06c-4202-9fd2-6f494c07008d.webp",
+        price: 129.99,
+        hasDiscount: false,
+        discountPrice: 0,
+        quantity: 99,
+        brandId: 79, // Heshe
+        colorId: 3, // Silver
+        subCategoryId: 205, // Bags (Woman's Fashion)
+      },
+      {
+        id: 403,
+        productName: "Attitude Super Leaves Hand Soap",
+        image: "736a81c0-c378-4650-8fd8-3f555c0d9059.webp",
+        price: 8.99,
+        hasDiscount: true,
+        discountPrice: 7.33,
+        quantity: 94,
+        brandId: 110, // Attitude
+        colorId: 4, // Blue
+        subCategoryId: 231, // Skin care (Health & Beauty)
+      },
+      {
+        id: 316,
+        productName: "Calvin Klein Heel Shoes",
+        image: "185e85ef-5ac5-4730-8dae-37ba4d4921f2.webp",
+        price: 79.99,
+        hasDiscount: false,
+        discountPrice: 0,
+        quantity: 93,
+        brandId: 74, // Calvin Klein
+        colorId: 2, // Black
+        subCategoryId: 204, // Shoes (Woman's Fashion)
+      },
+      {
+        id: 369,
+        productName: "Samsung Galaxy Tab White",
+        image: "0f0e74df-191a-4042-ac46-69be97285d23.webp",
+        price: 349.99,
+        hasDiscount: true,
+        discountPrice: 286.29,
+        quantity: 92,
+        brandId: 36, // Samsung
+        colorId: 28, // White
+        subCategoryId: 215, // Tablets (Electronic)
+      },
+      {
+        id: 407,
+        productName: "Gigabyte Aorus Men Tshirt",
+        image: "36fce477-96bd-4e04-90c9-9f88c100111c.webp",
+        price: 24.99,
+        hasDiscount: false,
+        discountPrice: 0,
+        quantity: 90,
+        brandId: 88, // Gigabyte
+        colorId: 18, // Gray
+        subCategoryId: 220, // Shirts (Men's Fashion)
+      },
+      {
+        id: 391,
+        productName: "IWC Ingenieur Automatic Steel",
+        image: "77646aab-aced-4f13-ae57-12d02c908839.webp",
+        price: 4999.99,
+        hasDiscount: true,
+        discountPrice: 4527.49,
+        quantity: 90,
+        brandId: 83, // IWC
+        colorId: 4, // Blue
+        subCategoryId: 208, // Watches (Woman's Fashion)
+      },
+      {
+        id: 317,
+        productName: "Golden Shoes Woman",
+        image: "03a0e3a1-0c6e-4f3b-a65d-536f2fdab4f8.webp",
+        price: 49.99,
+        hasDiscount: true,
+        discountPrice: 43.03,
+        quantity: 88,
+        brandId: 85, // Fashion Gold
+        colorId: 19, // Gold
+        subCategoryId: 204, // Shoes (Woman's Fashion)
+      },
+    ];
+
+    for (const p of products) {
+      await prisma.product.create({
+        data: {
+          id: p.id,
+          productName: p.productName,
+          description: p.productName,
+          code: `SKU-${p.id}`,
+          price: p.price,
+          hasDiscount: p.hasDiscount,
+          discountPrice: p.discountPrice,
+          quantity: p.quantity,
+          brandId: p.brandId,
+          colorId: p.colorId,
+          subCategoryId: p.subCategoryId,
+          images: {
+            create: [{ images: p.image }],
+          },
+        },
+      });
+    }
+
+    console.log("✅ Все оригинальные данные успешно загружены в базу!");
+  } catch (error) {
+    console.error("Ошибка при автозаполнении базы:", error);
+  }
 }
 
 app.listen(PORT, async () => {
