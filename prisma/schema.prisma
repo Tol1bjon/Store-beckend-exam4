@@ -16,6 +16,7 @@ model User {
   googleId    String?    @unique
   firstName   String     @default("")
   lastName    String     @default("")
+  address     String     @default("")
   dob         String     @default("")
   image       String     @default("default-avatar.png")
   role        String     @default("User")

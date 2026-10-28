@@ -8,6 +8,7 @@ import multer from "multer";
 import swaggerUi from "swagger-ui-express";
 import { PrismaClient } from "@prisma/client";
 import { swaggerDocument } from "./swagger";
+import profileRouter from "./routes/profile";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -76,6 +77,8 @@ const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => 
 
 app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.get("/swagger/v1/swagger.json", (_req, res) => res.json(swaggerDocument));
+
+app.use("/UserProfile", profileRouter);
 
 app.post("/Account/register", async (req, res) => {
   try {

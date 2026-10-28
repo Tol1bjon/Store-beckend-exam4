@@ -45,6 +45,18 @@ export const swaggerDocument = {
           picture: { type: "string", example: "https://lh3.googleusercontent.com/..." },
           googleId: { type: "string", example: "10987654321" }
         }
+      },
+      UpdateUserProfileDto: {
+        type: "object",
+        properties: {
+          firstName: { type: "string", example: "Ali" },
+          lastName: { type: "string", example: "Valiev" },
+          email: { type: "string", example: "student@gmail.com" },
+          address: { type: "string", example: "Rudaki Ave 123" },
+          phoneNumber: { type: "string", example: "+992900000000" },
+          currentPassword: { type: "string", example: "123456" },
+          newPassword: { type: "string", example: "654321" }
+        }
       }
     }
   },
@@ -78,6 +90,35 @@ export const swaggerDocument = {
           content: { "application/json": { schema: { $ref: "#/components/schemas/GoogleAuthDto" } } }
         },
         responses: { "200": { description: "Возвращает JWT токен" } }
+      }
+    },
+    "/UserProfile/get-user-profile": {
+      get: {
+        tags: ["UserProfile"],
+        summary: "Получить данные своего профиля (по токену)",
+        security: [{ Bearer: [] }],
+        responses: { "200": { description: "Профиль успешно получен" } }
+      }
+    },
+    "/UserProfile/get-user-profile-by-id": {
+      get: {
+        tags: ["UserProfile"],
+        summary: "Получить профиль пользователя по ID",
+        parameters: [
+          { name: "id", in: "query", required: true, schema: { type: "string" } }
+        ],
+        responses: { "200": { description: "Успешно" } }
+      }
+    },
+    "/UserProfile/update-user-profile": {
+      put: {
+        tags: ["UserProfile"],
+        summary: "Обновить данные профиля",
+        security: [{ Bearer: [] }],
+        requestBody: {
+          content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateUserProfileDto" } } }
+        },
+        responses: { "200": { description: "Успешно" } }
       }
     },
     "/Brand/get-brands": {
